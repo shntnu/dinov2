@@ -20,6 +20,25 @@ from nahual.server import responder
 address = sys.argv[1]
 
 
+def _resolve_device(device) -> torch.device:
+    """Pick a torch device the host can serve.
+
+    Strings ("cuda:0", "mps", "cpu") pass through. Ints select CUDA when
+    available, fall back to MPS on Apple Silicon, else CPU - so a notebook
+    that hard-codes `device=3` still launches on a Mac.
+    """
+    if isinstance(device, torch.device):
+        return device
+    if isinstance(device, str):
+        return torch.device(device)
+    idx = 0 if device is None else int(device)
+    if torch.cuda.is_available():
+        return torch.device("cuda", idx)
+    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def setup(
     repo_or_dir: str = "facebookresearch/dinov2",
     model_name: str = "dinov2_vits14",
@@ -41,10 +60,7 @@ def setup(
     dict
         A dictionary containing the device information and configuration parameters.
     """
-    assert torch.cuda.is_available(), "Cuda is not available"
-    if device is None:
-        device = 0
-    device = torch.device(int(device))
+    device = _resolve_device(device)
 
     loaded_model = torch.hub.load(repo_or_dir, model_name, pretrained=pretrained).to(
         device
@@ -92,7 +108,7 @@ def process(
     # [N, 3, M*14, M*14] (divisible by 14)
     with torch.no_grad():
         for chunk in chunks:
-            torch_tensor = torch.from_numpy(chunk).float().cuda().to(device)
+            torch_tensor = torch.from_numpy(chunk).float().to(device)
             result = processor(torch_tensor)
             if hasattr(result, "detach"):
                 result = result.detach().cpu().numpy()

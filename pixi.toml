@@ -1,0 +1,32 @@
+# Cross-platform launcher for the DINOv2 server.
+#
+# Parallel to the existing flake.nix - the flake remains the canonical path
+# on Linux+CUDA; this file lets the server run on macOS (MPS) and any Linux
+# host where the Nix derivation is awkward.
+#
+# Usage:
+#   pixi run dinov2                       # listens on ipc:///tmp/dinov2_$USER.ipc
+#   pixi run dinov2 ipc:///tmp/other.ipc  # custom address
+
+[workspace]
+name = "dinov2-pixi"
+description = "DINOv2 server via pixi (Darwin-compatible alternative to the Nix flake)"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "osx-64"]
+
+[tasks]
+dinov2 = "python server.py"
+
+[dependencies]
+python = "3.13.*"
+pytorch = ">=2.4"
+torchvision = "*"
+numpy = "*"
+pip = "*"
+
+[pypi-dependencies]
+# PyPI's nahual lags master - the server uses channel_chunks_rigid3 which only
+# exists on the git HEAD that the Nix flake also pins.
+nahual = { git = "https://github.com/afermg/nahual.git" }
+pynng = "*"
+trio = "*"
