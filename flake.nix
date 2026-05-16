@@ -84,6 +84,16 @@
                 export PYTHONDONTWRITEBYTECODE=1
               '';
             };
+
+          # Minimal shell for the pixi-based path. Exposes pixi and the system
+          # NVIDIA driver libs so conda-installed pytorch-gpu can load libcuda
+          # on NixOS, where /run/opengl-driver/lib is not on a default search
+          # path. Use as:  nix develop .#pixi --command pixi run dinov2 ...
+          # (Pattern from shntnu/neusis templates/python-pixi.)
+          pixi = mkShell {
+            packages = [ pkgs.pixi ];
+            LD_LIBRARY_PATH = "/run/opengl-driver/lib";
+          };
         };
       }
     );
