@@ -4,9 +4,10 @@
 # on Linux+CUDA; this file lets the server run on macOS (MPS) and any Linux
 # host where the Nix derivation is awkward.
 #
-# Usage:
-#   pixi run dinov2                       # listens on ipc:///tmp/dinov2_$USER.ipc
-#   pixi run dinov2 ipc:///tmp/other.ipc  # custom address
+# Two environments because the CUDA system-requirement is platform-gated and
+# pixi cannot mix it transparently with a no-CUDA macOS path in one env:
+#   Linux+CUDA: pixi run dinov2 ipc:///tmp/dinov2_$USER.ipc
+#   macOS+MPS:  pixi run -e osx dinov2 ipc:///tmp/dinov2_$USER.ipc
 
 [workspace]
 name = "dinov2-pixi"
@@ -19,10 +20,26 @@ dinov2 = "python server.py"
 
 [dependencies]
 python = "3.13.*"
-pytorch = ">=2.4"
 torchvision = "*"
 numpy = "*"
 pip = "*"
+
+[feature.linux-gpu]
+platforms = ["linux-64"]
+system-requirements = { cuda = "12" }
+[feature.linux-gpu.dependencies]
+pytorch-gpu = ">=2.4"
+
+[feature.osx-mps]
+platforms = ["osx-arm64", "osx-64"]
+[feature.osx-mps.dependencies]
+pytorch = ">=2.4"
+
+[environments]
+# Default is the Linux+CUDA env (matches the canonical platform). macOS users
+# pick the `osx` env explicitly with `pixi run -e osx dinov2`.
+default = { features = ["linux-gpu"], solve-group = "linux" }
+osx = { features = ["osx-mps"], solve-group = "osx" }
 
 [pypi-dependencies]
 # PyPI's nahual lags master - the server uses channel_chunks_rigid3 which only
